@@ -3,45 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Inventory Management System</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-        }
-        h1 {
-            color: #333;
-        }
-        form {
-            margin-bottom: 20px;
-        }
-        label {
-            display: inline-block;
-            width: 100px;
-        }
-        input[type="text"], input[type="number"] {
-            width: 200px;
-        }
-        input[type="submit"] {
-            margin-top: 10px;
-            padding: 5px 10px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-        }
-        th {
-            background-color: #f4f4f4;
-        }
-        .hidden {
-            display: none;
-        }
-    </style>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <h1>Inventory Management System</h1>
@@ -54,4 +16,112 @@
         <input type="text" id="name" name="name"><br>
         <label for="quantity">Quantity:</label><br>
         <input type="number" id="quantity" name="quantity"><br>
- 
+        <label for="price">Price:</label><br>
+        <input type="text" id="price" name="price"><br>
+        <input type="hidden" id="editMode" value="add">
+        <input type="submit" value="Add Item" onclick="submitForm()">
+    </form>
+
+    <!-- Inventory Table -->
+    <h2>Inventory</h2>
+    <table id="inventoryTable">
+        <thead>
+            <tr>
+                <th>Item ID</th>
+                <th>Name</th>
+                <th>Quantity</th>
+                <th>Price</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Dynamic content goes here -->
+        </tbody>
+    </table>
+
+    <script>
+        let inventory = {{ inventory|safe }};
+
+        function loadInventory() {
+            const tableBody = document.querySelector('#inventoryTable tbody');
+            tableBody.innerHTML = '';
+            for (const [item_id, item] of Object.entries(inventory)) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${item_id}</td>
+                    <td>${item.name}</td>
+                    <td>${item.quantity}</td>
+                    <td>${item.price}</td>
+                    <td>
+                        <button onclick="editItem('${item_id}')">Edit</button>
+                        <button onclick="deleteItem('${item_id}')">Delete</button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            }
+        }
+
+        function submitForm() {
+            const itemId = document.getElementById('item_id').value;
+            const name = document.getElementById('name').value;
+            const quantity = document.getElementById('quantity').value;
+            const price = document.getElementById('price').value;
+            const editMode = document.getElementById('editMode').value;
+
+            const data = {
+                item_id: itemId,
+                name: name,
+                quantity: quantity,
+                price: price
+            };
+
+            fetch(`/${editMode === 'edit' ? 'update' : 'add'}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            }).then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    inventory[itemId] = { name, quantity, price };
+                    loadInventory();
+                    resetForm();
+                }
+            });
+        }
+
+        function editItem(item_id) {
+            const item = inventory[item_id];
+            document.getElementById('item_id').value = item_id;
+            document.getElementById('name').value = item.name;
+            document.getElementById('quantity').value = item.quantity;
+            document.getElementById('price').value = item.price;
+            document.getElementById('editMode').value = 'edit';
+        }
+
+        function deleteItem(item_id) {
+            fetch('/delete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ item_id })
+            }).then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    delete inventory[item_id];
+                    loadInventory();
+                }
+            });
+        }
+
+        function resetForm() {
+            document.getElementById('itemForm').reset();
+            document.getElementById('editMode').value = 'add';
+        }
+
+        document.addEventListener('DOMContentLoaded', loadInventory);
+    </script>
+</body>
+</html>
